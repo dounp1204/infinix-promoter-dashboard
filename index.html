@@ -24,7 +24,35 @@ summary{cursor:pointer}.cards{display:grid;grid-template-columns:repeat(5,minmax
 .tw{overflow:auto;max-height:670px;border:1px solid var(--line);border-radius:9px}table{border-collapse:collapse;width:100%;font-size:12px}th,td{padding:9px;border-bottom:1px solid var(--line);white-space:nowrap;text-align:right}th{position:sticky;top:0;background:#f6f8fc;z-index:2}th:first-child,td:first-child,th:nth-child(2),td:nth-child(2),th:nth-child(3),td:nth-child(3){text-align:left}
 .status{font-size:12px;color:var(--muted);margin:10px 0}.note{font-size:11px;color:#567064;background:#edf8f4;padding:10px 12px;border-radius:8px;margin-top:10px}
 .rankTabs{display:flex;gap:8px;margin:8px 0 12px;flex-wrap:wrap}.rankTab{border:1px solid #d9e0ea;background:#fff;color:#475467;padding:9px 14px;border-radius:9px;font-weight:700;cursor:pointer}.rankTab.on{background:#eaf7f2;color:#087f5b;border-color:#19a974}.rankTab:hover{border-color:#19a974}.rankTabs+.status{margin-top:0}.judg{font-weight:800}.j-good{color:#149473}.j-watch{color:#b56a00}.j-bad{color:#b42318}.j-check{color:#3267e8}
+.insight{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-bottom:14px}
+.insightHead{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.insightHead h2{margin:0;font-size:18px}.insightMeta{font-size:12px;color:var(--muted)}
+.health{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:800}
+.health.good{background:#eaf7f2;color:#087f5b}.health.watch{background:#fff5df;color:#a15c00}.health.bad{background:#fff0ee;color:#b42318}
+.insightGrid{display:grid;grid-template-columns:1fr;gap:10px}
+.insightGrid.autoCompact{grid-template-columns:1fr 1fr}
+.insightGrid.autoCompact .insightCol:first-child{grid-column:1/-1}
+.insightGrid.autoCompact .insightCol.problem,.insightGrid.autoCompact .insightCol.action{grid-column:auto}
+.insightCol{min-height:0!important;height:auto}
+.insightCol.problem,.insightCol.action{padding-top:10px;padding-bottom:10px}
+@media(max-width:900px){.insightGrid.autoCompact{grid-template-columns:1fr}.insightGrid.autoCompact .insightCol:first-child{grid-column:auto}}
+.insightCol{background:#f8fafc;border:1px solid #edf1f5;border-radius:10px;padding:12px 14px}
+.insightCol h3{margin:0 0 8px;font-size:13px}.insightCol ul{margin:0;padding-left:18px}.insightCol li{margin:5px 0;line-height:1.45;color:#38445a}
+.insightCol.problem{background:#fffaf2}.insightCol.action{background:#f2faf7}
+.attn{margin-top:10px;font-size:12px;color:#536078}.attn b{color:#14213d}
+
+
 @media(max-width:1350px){.grid7{grid-template-columns:repeat(4,1fr)}}@media(max-width:900px){.app{grid-template-columns:1fr}.side{display:none}.grid3,.grid7{grid-template-columns:1fr}.page{padding:12px}}
+
+.chart{position:relative}
+.chartTooltip{position:fixed;z-index:9999;display:none;pointer-events:none;background:rgba(20,33,61,.94);color:#fff;
+padding:7px 10px;border-radius:7px;font-size:12px;line-height:1.4;box-shadow:0 6px 18px rgba(20,33,61,.22);
+white-space:nowrap;transform:translate(10px,-12px)}
+.chart svg [data-tip]{cursor:pointer}
+
+.insightCol b{font-weight:800;color:#13294b}
+.insightCol.problem b{color:#9b5b00}
+.insightCol.action b{color:#08765d}
 </style>
 </head>
 <body>
@@ -39,6 +67,15 @@ summary{cursor:pointer}.cards{display:grid;grid-template-columns:repeat(5,minmax
 <div class="top"><div><span class="title">导购经营看板</span><span class="range" id="dataRange">数据加载中…</span></div><button class="export" id="exportSummary">⇩ 导出汇总</button></div>
 
 <section id="overview" class="view on"><div class="page">
+<div class="insight" id="overviewInsight">
+  <div class="insightHead"><div><h2>经营洞察</h2><div class="insightMeta" id="overviewInsightMeta">自动分析最新月份及近3个月趋势</div></div><span class="health good" id="overviewHealth">分析中…</span></div>
+  <div class="insightGrid">
+    <div class="insightCol"><h3>现状</h3><ul id="overviewNow"></ul></div>
+    <div class="insightCol problem"><h3>问题发现</h3><ul id="overviewProblems"></ul></div>
+    <div class="insightCol action"><h3>建议</h3><ul id="overviewActions"></ul></div>
+  </div>
+  <div class="attn" id="overviewAttention"></div>
+</div>
 <div class="box filters"><label>累计月份：</label><details id="cumD"><summary id="cumSummary">加载中…</summary><div class="menu" id="cumMenu"></div></details><span style="color:var(--muted);font-size:12px">仅联动累计指标，不影响趋势图</span></div>
 <div class="cards" id="cards"></div>
 
@@ -57,14 +94,43 @@ summary{cursor:pointer}.cards{display:grid;grid-template-columns:repeat(5,minmax
 </div>
 </div></section>
 
-<section id="promoters" class="view"><div class="page"><div class="tablebox"><div class="thead"><h2>在职导购近3个月表现</h2><button class="subexport" id="exportProm">⇩ 导出导购表现</button></div><div class="tw"><table id="promTable"></table></div></div></div></section>
+<section id="promoters" class="view"><div class="page">
+<div class="insight" id="promoterInsight">
+  <div class="insightHead"><div><h2>导购团队诊断</h2><div class="insightMeta" id="promoterInsightMeta">基于所有纳入评价导购的近3个月表现</div></div><span class="health good" id="promoterHealth">分析中…</span></div>
+  <div class="insightGrid">
+    <div class="insightCol"><h3>现状</h3><ul id="promoterNow"></ul></div>
+    <div class="insightCol problem"><h3>异常点</h3><ul id="promoterProblems"></ul></div>
+    <div class="insightCol action"><h3>建议</h3><ul id="promoterActions"></ul></div>
+  </div>
+  <div class="attn" id="promoterAttention"></div>
+</div>
+<div class="tablebox"><div class="thead"><h2>在职导购近3个月表现</h2><button class="subexport" id="exportProm">⇩ 导出导购表现</button></div><div class="tw"><table id="promTable"></table></div></div></div></section>
 <section id="ranking" class="view"><div class="page"><div class="tablebox"><div class="thead"><h2 id="rankTitle">导购排名与优化</h2><button class="subexport" id="exportRank">⇩ 导出当前排名</button></div>
 <div class="box filters" style="margin-bottom:10px"><label>排名月份：</label><details id="rankD"><summary id="rankSummary">加载中…</summary><div class="menu" id="rankMenu"></div></details><span style="color:var(--muted);font-size:12px">排名以所选区间的最后一个月为评价截止月；截止月之后才入职的导购自动排除。</span></div>
 <div class="rankTabs"><button class="rankTab on" data-mode="top">🏆 优秀导购 Top 20</button><button class="rankTab" data-mode="bottom">⚠️ 待优化导购 Bottom 20</button><button class="rankTab" data-mode="zero">🚨 在职无销售数据</button></div>
 <div class="status" id="rankStatus"></div><div class="note" id="rankRuleNote"></div><div class="tw"><table id="rankTable"></table></div></div></div></section>
-<section id="quality" class="view"><div class="page"><div class="tablebox"><h2>数据质量</h2><div id="qualityText" class="status"></div></div></div></section>
+<section id="quality" class="view"><div class="page">
+<div class="tablebox"><h2>数据质量</h2><div id="qualityText" class="status"></div></div>
+<div class="tablebox" style="margin-top:14px">
+  <div class="thead"><h2>诊断中间表</h2><button class="subexport" id="exportAudit">⇩ 导出诊断中间表</button></div>
+  <div class="status" id="auditStatus">用于核验“导购团队诊断”的底层计算。只纳入评价截止月之前已入职的导购。</div>
+  <div class="tw"><table id="auditTable"></table></div>
+</div>
+</div></section>
 </main></div>
 <script>
+const FOCUS_PRODUCT_LAUNCH = {
+  "NOTE 60 Pro": "202604",
+  "GT 50 Pro": "202606"
+};
+function productStage(productName,currentMonth,previousMonth){
+  const launch=FOCUS_PRODUCT_LAUNCH[productName];
+  if(!launch) return 'normal';
+  if(String(currentMonth)===String(launch)) return 'launch';
+  if(previousMonth && String(previousMonth)>=String(launch)) return 'normal';
+  return 'prelaunch';
+}
+
 const SB='https://httozorxbmpgnthswjem.supabase.co', KEY='sb_publishable_jakoW2suehiJq5NoKAhuIw_BRo4sWiF';
 const C=['#3f6df6','#149473','#f59a23','#20b4ad','#7a3bd1'];
 let D=null;
@@ -92,16 +158,344 @@ function updateSummary(){let ms=chosen('cumChk'),s=ms.length?monthLabel(ms[0])+(
  ['总销售额',money(a.sales),`${ms.length}个月累计`,'k1'],['总实际激励',money(a.inc),`激励成本率：${(rate*100).toFixed(2)}%`,'k2'],['门店总销量',fmt(a.qty)+' 台',`Promoter销量占比：${(share*100).toFixed(2)}%`,'k3'],['NOTE 60 Pro 销量',fmt(a.note60)+' 台','Promoter渠道','k4'],['GT 50 Pro 销量',fmt(a.gt50)+' 台','Promoter渠道','k5']
  ].map(x=>`<div class="kpi ${x[3]}"><div class="l">${x[0]}</div><div class="v">${x[1]}</div><div class="s">${x[2]}</div></div>`).join('')}
 function rows(mode,key,filter){return D.months.map(m=>mode=='type'?(filter=='ALL'?(key=='ALL'?D.monthly[m]:D.byS[key][m]):(key=='ALL'?D.byR[filter][m]:D.byRS[filter][key][m])):(filter=='ALL'?(key=='ALL'?D.monthly[m]:D.byR[key][m]):(key=='ALL'?D.byS[filter][m]:D.byRS[key][filter][m])))}
-function chart(el,rs,focus=false,small=false){let W=small?340:650,H=small?210:245,L=42,R=38,T=18,B=28,gw=(W-L-R)/D.months.length;let keys=focus?['note60','gt50']:['qty','promoter','incentive'];let max=Math.max(1,...rs.flatMap(r=>keys.map(k=>r[k]||0)))*1.12,y=v=>H-B-v/max*(H-T-B),xp=i=>L+i*gw+gw/2,bw=Math.max(5,gw/(keys.length+2));let g='';
- for(let q=0;q<=4;q++){let v=max*q/4,yy=y(v);g+=`<line x1="${L}" y1="${yy}" x2="${W-R}" y2="${yy}" stroke="#edf0f5"/><text x="${L-4}" y="${yy+3}" text-anchor="end" font-size="7" fill="#7a8498">${focus?fmt(v):(v/10000).toFixed(1)}</text>`}
- rs.forEach((r,i)=>keys.forEach((k,j)=>{let v=r[k]||0;if(focus&&v<=0)return;let xx=xp(i)+(j-(keys.length-1)/2)*bw- bw/2,yy=y(v);g+=`<rect x="${xx}" y="${yy}" width="${bw}" height="${H-B-yy}" rx="2" fill="${C[focus?j+3:j]}"/><text x="${xx+bw/2}" y="${Math.max(T+7,yy-3)}" text-anchor="middle" font-size="6.5" font-weight="700" fill="${C[focus?j+3:j]}">${focus?fmt(v):(v/10000).toFixed(1)}</text>`}));
- let lines=focus?[{c:'#3267e8',f:r=>r.incentive?r.note60/r.incentive:0,show:r=>r.note60>0},{c:'#8a3bd1',f:r=>r.incentive?r.gt50/r.incentive:0,show:r=>r.gt50>0}]:[{c:'#3157cf',f:r=>r.qty?r.promoter/r.qty:0,show:()=>true},{c:'#d53fb3',f:r=>r.promoter?r.incentive/r.promoter:0,show:()=>true}];
- lines.forEach(z=>{let pts=rs.map((r,i)=>z.show(r)?`${xp(i)},${H-B-z.f(r)*(H-T-B)}`:null).filter(Boolean);if(pts.length>1)g+=`<polyline points="${pts.join(' ')}" fill="none" stroke="${z.c}" stroke-width="2"/>`;rs.forEach((r,i)=>{if(!z.show(r))return;let p=z.f(r),xx=xp(i),yy=H-B-p*(H-T-B);g+=`<circle cx="${xx}" cy="${yy}" r="3" fill="#fff" stroke="${z.c}" stroke-width="2"/><text x="${xx}" y="${yy-6}" text-anchor="middle" font-size="6.5" font-weight="700" fill="${z.c}">${(p*100).toFixed(1)}%</text>`})});
- g+=D.months.map((m,i)=>`<text x="${xp(i)}" y="${H-7}" text-anchor="middle" font-size="7" fill="#667085">${m.slice(2)}</text>`).join('');el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="100%" height="100%" preserveAspectRatio="none">${g}</svg>`}
+function ensureChartTooltip(){
+ let t=document.getElementById('chartTooltip');
+ if(!t){t=document.createElement('div');t.id='chartTooltip';t.className='chartTooltip';document.body.appendChild(t)}
+ return t
+}
+function bindChartTooltip(el){
+ const tip=ensureChartTooltip();
+ el.querySelectorAll('[data-tip]').forEach(node=>{
+   node.addEventListener('mouseenter',e=>{tip.innerHTML=node.dataset.tip;tip.style.display='block'});
+   node.addEventListener('mousemove',e=>{tip.style.left=e.clientX+'px';tip.style.top=e.clientY+'px'});
+   node.addEventListener('mouseleave',()=>{tip.style.display='none'});
+ });
+}
+function chart(el,rs,focus=false,small=false){
+ let W=small?340:650,H=small?210:245,L=42,R=38,T=18,B=28,gw=(W-L-R)/D.months.length;
+ let keys=focus?['note60','gt50']:['qty','promoter','incentive'];
+ let barNames=focus?{note60:'NOTE 60 Pro',gt50:'GT 50 Pro'}:{qty:'门店总销量',promoter:'Promoter销量',incentive:'激励机型销量'};
+ let max=Math.max(1,...rs.flatMap(r=>keys.map(k=>r[k]||0)))*1.12,
+     y=v=>H-B-v/max*(H-T-B),xp=i=>L+i*gw+gw/2,bw=Math.max(5,gw/(keys.length+2));
+ let g='';
+ for(let q=0;q<=4;q++){
+   let v=max*q/4,yy=y(v);
+   g+=`<line x1="${L}" y1="${yy}" x2="${W-R}" y2="${yy}" stroke="#edf0f5"/>
+       <text x="${L-4}" y="${yy+3}" text-anchor="end" font-size="7" fill="#7a8498">${focus?fmt(v):(v/10000).toFixed(1)}</text>`;
+ }
+ rs.forEach((r,i)=>keys.forEach((k,j)=>{
+   let v=r[k]||0;if(focus&&v<=0)return;
+   let xx=xp(i)+(j-(keys.length-1)/2)*bw-bw/2,yy=y(v),m=D.months[i];
+   let tip=`<b>${monthLabel(m)}</b><br>${barNames[k]}：${fmt(v)} 台`;
+   g+=`<rect data-tip="${tip.replaceAll('"','&quot;')}" x="${xx}" y="${yy}" width="${bw}" height="${H-B-yy}" rx="2" fill="${C[focus?j+3:j]}"/>
+       <text x="${xx+bw/2}" y="${Math.max(T+7,yy-4)}" text-anchor="middle" font-size="${small?6.5:7}" font-weight="700" fill="${C[focus?j+3:j]}">${focus?fmt(v):(v/10000).toFixed(1)}</text>`;
+ }));
+ let lines=focus?
+   [
+    {c:'#3267e8',name:'NOTE 60 Pro / 激励机型销量',f:r=>r.incentive?r.note60/r.incentive:0,show:r=>r.note60>0},
+    {c:'#8a3bd1',name:'GT 50 Pro / 激励机型销量',f:r=>r.incentive?r.gt50/r.incentive:0,show:r=>r.gt50>0}
+   ]:
+   [
+    {c:'#3157cf',name:'Promoter销量占门店总销量',f:r=>r.qty?r.promoter/r.qty:0,show:()=>true},
+    {c:'#d53fb3',name:'激励机型销量占Promoter销量',f:r=>r.promoter?r.incentive/r.promoter:0,show:()=>true}
+   ];
+ lines.forEach(z=>{
+   let pts=rs.map((r,i)=>z.show(r)?`${xp(i)},${H-B-z.f(r)*(H-T-B)}`:null).filter(Boolean);
+   if(pts.length>1)g+=`<polyline points="${pts.join(' ')}" fill="none" stroke="${z.c}" stroke-width="2"/>`;
+   rs.forEach((r,i)=>{
+     if(!z.show(r))return;
+     let p=z.f(r),xx=xp(i),yy=H-B-p*(H-T-B),m=D.months[i];
+     let tip=`<b>${monthLabel(m)}</b><br>${z.name}：${(p*100).toFixed(1)}%`;
+     g+=`<circle data-tip="${tip.replaceAll('"','&quot;')}" cx="${xx}" cy="${yy}" r="4.5" fill="#fff" stroke="${z.c}" stroke-width="2"/>
+       <text x="${xx}" y="${Math.max(T+7,yy-7)}" text-anchor="middle" font-size="${small?6.3:6.8}" font-weight="700" fill="${z.c}">${(p*100).toFixed(1)}%</text>`;
+   });
+ });
+ g+=D.months.map((m,i)=>`<text x="${xp(i)}" y="${H-7}" text-anchor="middle" font-size="7" fill="#667085">${m.slice(2)}</text>`).join('');
+ el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="100%" height="100%" preserveAspectRatio="none">${g}</svg>`;
+ bindChartTooltip(el);
+}
 function renderType(){let f=typeRegion.value;chart(tAll,rows('type','ALL',f));chart(tConcept,rows('type','CONCEPT',f));chart(tKiosk,rows('type','KIOSK',f))}
 function renderRegions(){regionGrid.innerHTML=['ALL',...D.regions].map(r=>`<div class="panel"><h3>${r=='ALL'?'总体表现（所有区域）':r}</h3><div class="chart small" id="rg_${r.replaceAll(' ','_')}"></div></div>`).join('');['ALL',...D.regions].forEach(r=>chart(document.getElementById('rg_'+r.replaceAll(' ','_')),rows('region',r,regionStore.value),false,true))}
 function renderFocusType(){let f=focusTypeRegion.value;chart(fAll,rows('type','ALL',f),true);chart(fConcept,rows('type','CONCEPT',f),true);chart(fKiosk,rows('type','KIOSK',f),true)}
 function renderFocusRegions(){focusRegionGrid.innerHTML=['ALL',...D.regions].map(r=>`<div class="panel"><h3>${r=='ALL'?'总体表现（所有区域）':r}</h3><div class="chart small" id="fr_${r.replaceAll(' ','_')}"></div></div>`).join('');['ALL',...D.regions].forEach(r=>chart(document.getElementById('fr_'+r.replaceAll(' ','_')),rows('region',r,focusRegionStore.value),true,true))}
+
+function pct(v){return (v*100).toFixed(1)+'%'}
+function pp(v){return (v*100).toFixed(1)+'pct'}
+function mom(cur,prev){return prev?(cur-prev)/prev:null}
+function li(items){return items.map(x=>`<li>${x}</li>`).join('')}
+function lastMetric(container,key,month){return container?.[key]?.[month]||empty()}
+function median(a){let x=a.filter(Number.isFinite).sort((a,b)=>a-b);if(!x.length)return 0;let m=Math.floor(x.length/2);return x.length%2?x[m]:(x[m-1]+x[m])/2}
+
+
+function overviewDiagnostic(){
+ let ms=D.months.slice(-3), latest=ms.at(-1), prev=ms.length>1?ms.at(-2):null;
+ let cur=D.monthly[latest]||empty(), pre=prev?(D.monthly[prev]||empty()):empty();
+ let curShare=cur.qty?cur.promoter/cur.qty:0, preShare=pre.qty?pre.promoter/pre.qty:0;
+ let qchg=prev?mom(cur.qty,pre.qty):null, pchg=prev?mom(cur.promoter,pre.promoter):null;
+ let now=[],problems=[],actions=[],attention=[],severity=0;
+
+ // A. 总体门店 + Promoter
+ if(qchg!==null){
+   let qtxt=Math.abs(qchg)<.05?'基本稳定':qchg>0?`环比增长 ${pct(qchg)}`:`环比下降 ${pct(-qchg)}`;
+   let ptxt=Math.abs(pchg)<.05?'基本稳定':pchg>0?`增长 ${pct(pchg)}`:`下降 ${pct(-pchg)}`;
+   now.push(`总体：最新月门店销量 <b>${fmt(cur.qty)} 台</b>，${qtxt}；Promoter销量 <b>${fmt(cur.promoter)} 台</b>，环比${ptxt}；Promoter销量占比 <b>${pct(curShare)}</b>${prev?`，较上月${curShare>=preShare?'提升':'下降'} ${pp(Math.abs(curShare-preShare))}`:''}。`);
+ }
+
+ // B. 重点品：严格按上市月份判断是否允许环比
+ let noteStage=productStage('NOTE 60 Pro',latest,prev);
+ let gtStage=productStage('GT 50 Pro',latest,prev);
+ let noteChg=(prev&&noteStage==='normal')?mom(cur.note60,pre.note60):null;
+ let gtChg=(prev&&gtStage==='normal')?mom(cur.gt50,pre.gt50):null;
+ let noteTxt = noteStage==='launch'
+   ? `NOTE 60 Pro ${monthLabel(latest)}上市，首月 ${fmt(cur.note60)} 台`
+   : `NOTE 60 Pro ${fmt(cur.note60)} 台${noteChg!==null?`，环比${noteChg>=0?'+':''}${pct(noteChg)}`:''}`;
+ let gtTxt = gtStage==='launch'
+   ? `GT 50 Pro ${monthLabel(latest)}上市，首月 ${fmt(cur.gt50)} 台`
+   : `GT 50 Pro ${fmt(cur.gt50)} 台${gtChg!==null?`，环比${gtChg>=0?'+':''}${pct(gtChg)}`:''}`;
+ 
+ // 重点品整体贡献：NOTE 60 Pro + GT 50 Pro 占导购激励机型销量
+ let focusMonthly=ms.map(m=>{
+   let d=D.monthly[m]||empty(), vol=(d.note60||0)+(d.gt50||0), share=d.incentive?vol/d.incentive:0;
+   return {m,vol,share,incentive:d.incentive||0}
+ });
+ let latestFocus=focusMonthly.at(-1), prevFocus=focusMonthly.length>1?focusMonthly.at(-2):null;
+ let focusTrendText=focusMonthly.map(x=>`${monthLabel(x.m)} ${pct(x.share)}`).join(' → ');
+ let focusDelta=prevFocus?latestFocus.share-prevFocus.share:null;
+ let focusDeltaTxt=focusDelta===null?'':`，较上月${focusDelta>=0?'提升':'下降'} ${pp(Math.abs(focusDelta))}`;
+ now.push(`重点品：${noteTxt}；${gtTxt}。两款重点品最新月合计 <b>${fmt(latestFocus.vol)} 台</b>，占导购激励机型销量 <b>${pct(latestFocus.share)}</b>${focusDeltaTxt}；近3个月占比 ${focusTrendText}。`);
+
+ // 组合异常判断：占比连续走弱，或最新月下降明显
+ let focusShares=focusMonthly.map(x=>x.share);
+ let focusContinuousDown=focusShares.length>=3 && focusShares[2]<focusShares[1] && focusShares[1]<focusShares[0];
+ if(focusDelta!==null && focusDelta<=-.03){
+   problems.push(`两款重点品在导购激励机型中的合计占比较上月下降 <b>${pp(-focusDelta)}</b>，核心产品对导购产出的拉动有所减弱。`);
+   actions.push('建议优先看占比下降最明显的区域和门店类型，集中资源做重点品转化提升，并在下月复盘重点品合计占比是否回升。');
+   severity+=1;attention.push('重点品整体贡献');
+ }else if(focusContinuousDown){
+   problems.push('两款重点品在导购激励机型中的合计占比近3个月持续走低，核心产品拉动正在减弱。');
+   actions.push('建议把资源集中到重点品整体贡献下滑最明显的区域和门店类型，明确下月改善目标，并持续跟踪重点品合计占比。');
+   severity+=1;attention.push('重点品整体贡献');
+ }
+
+
+ // C. 门店类型（动态支持未来 SIS 等）
+ let storeStats=D.stores.map(s=>{
+   let c=D.byS[s]?.[latest]||empty(), p=prev?(D.byS[s]?.[prev]||empty()):empty();
+   let sh=c.qty?c.promoter/c.qty:0, psh=p.qty?p.promoter/p.qty:0;
+   return {name:s,c,p,share:sh,shareDelta:sh-psh,promChg:prev?mom(c.promoter,p.promoter):null,qtyChg:prev?mom(c.qty,p.qty):null}
+ }).filter(x=>x.c.qty>0||x.c.promoter>0);
+
+ if(storeStats.length){
+   let best=[...storeStats].sort((a,b)=>b.share-a.share)[0];
+   let weak=[...storeStats].sort((a,b)=>a.share-b.share)[0];
+   now.push(`门店类型：${best.name} Promoter贡献率最高（${pct(best.share)}）${storeStats.length>1?`，${weak.name}相对最低（${pct(weak.share)}）`:''}。`);
+   let risk=storeStats.filter(x=>x.shareDelta<-.04 || (x.promChg!==null&&x.promChg<-.18&&(x.qtyChg===null||x.qtyChg>-.10)))
+     .sort((a,b)=>a.shareDelta-b.shareDelta)[0];
+   if(risk){
+     problems.push(`${risk.name} 导购表现需关注：${risk.shareDelta<-.04?`Promoter贡献率下降 ${pp(-risk.shareDelta)}`:`Promoter贡献率为 ${pct(risk.share)}`}${risk.promChg!==null&&risk.promChg<-.18?`，Promoter销量环比下降 ${pct(-risk.promChg)}`:''}。`);
+     actions.push(`优先检查 ${risk.name} 的导购配置、目标设定、门店客流及重点品执行，先定位结构性原因。`);
+     attention.push(risk.name);severity+=1;
+   }
+ }
+
+ // D. 六大区域：明确展示，不再被 slice 掉
+ let regionStats=D.regions.map(r=>{
+   let c=D.byR[r]?.[latest]||empty(), p=prev?(D.byR[r]?.[prev]||empty()):empty();
+   let sh=c.qty?c.promoter/c.qty:0, psh=p.qty?p.promoter/p.qty:0;
+   return {name:r,c,p,share:sh,shareDelta:sh-psh,promChg:prev?mom(c.promoter,p.promoter):null,qtyChg:prev?mom(c.qty,p.qty):null}
+ }).filter(x=>x.c.qty>0||x.c.promoter>0);
+
+ if(regionStats.length){
+   let best=[...regionStats].sort((a,b)=>b.share-a.share)[0];
+   let weak=[...regionStats].sort((a,b)=>a.share-b.share)[0];
+   now.push(`区域：${best.name} Promoter贡献率最高（${pct(best.share)}），${weak.name}最低（${pct(weak.share)}）；其余区域按贡献率和环比趋势持续监控。`);
+
+   let regionalRisk=regionStats.filter(x=>
+      x.share < curShare-.08 ||
+      x.shareDelta<-.05 ||
+      (x.promChg!==null&&x.promChg<-.20&&(x.qtyChg===null||x.qtyChg>-.10))
+   ).sort((a,b)=>{
+      let sa=(a.share-curShare)+(a.shareDelta||0);
+      let sb=(b.share-curShare)+(b.shareDelta||0);
+      return sa-sb
+   })[0];
+
+   if(regionalRisk){
+     let reason=[];
+     if(regionalRisk.share<curShare-.08) reason.push(`贡献率低于整体 ${pp(curShare-regionalRisk.share)}`);
+     if(regionalRisk.shareDelta<-.05) reason.push(`贡献率环比下降 ${pp(-regionalRisk.shareDelta)}`);
+     if(regionalRisk.promChg!==null&&regionalRisk.promChg<-.20) reason.push(`Promoter销量下降 ${pct(-regionalRisk.promChg)}`);
+     problems.push(`${regionalRisk.name} 是当前区域侧重点关注对象：${reason.join('，')}。`);
+     actions.push(`对 ${regionalRisk.name} 下钻到门店类型、重点品与导购目标达成，判断问题来自门店结构、人员效率还是产品转化。`);
+     attention.push(regionalRisk.name);severity+=1;
+   }
+ }
+
+ // E. 总体异常
+ if(prev && curShare < preShare-.03){
+   problems.push(`整体Promoter贡献率环比下降 ${pp(preShare-curShare)}，需关注导购渠道贡献是否弱化。`);
+   actions.push('先拆解门店类型和区域，确认贡献下降是局部问题还是整体性变化。');
+   severity+=1;
+ }
+ if(prev && qchg!==null && pchg!==null && qchg>-.05 && pchg<-.15){
+   problems.push('门店整体销量基本稳定，但Promoter销量明显下降，存在导购产出与门店销售脱钩迹象。');
+   actions.push('优先复盘导购覆盖、和门店执行，不建议在未定位原因前统一增加激励。');
+   severity+=2;
+ }
+
+ // F. 重点品问题：仅在允许比较时判断环比
+ if(noteChg!==null && noteChg<-.20){
+   problems.push(`NOTE 60 Pro 环比下降 ${pct(-noteChg)}，重点品表现走弱。`);
+   actions.push('进一步定位NOTE 60 Pro的弱门店类型和弱区域，检查产品转化、库存与导购推荐执行。');
+   severity+=1;attention.push('NOTE 60 Pro');
+ }
+ if(gtChg!==null && gtChg<-.20){
+   problems.push(`GT 50 Pro 环比下降 ${pct(-gtChg)}，重点品表现走弱。`);
+   actions.push('进一步定位GT 50 Pro的弱门店类型和弱区域，检查目标客群、库存与导购转化。');
+   severity+=1;attention.push('GT 50 Pro');
+ }
+
+ if(!problems.length){
+   problems.push('整体门店、Promoter贡献、重点品及门店类型/区域表现处于正常波动范围，暂未发现需要特别干预的明显异常。');
+   actions.push('保持当前策略，持续观察Promoter贡献率、重点品趋势及门店类型/区域分化。');
+ }
+
+ // 简洁但不丢区域：现状最多5条，问题/建议最多3条
+ now=now.slice(0,5);
+ problems=[...new Set(problems)].slice(0,3);
+ actions=[...new Set(actions)].slice(0,3);
+ let health=severity>=3?['🔴 需重点关注','bad']:severity>=1?['🟡 整体稳定，局部需关注','watch']:['🟢 整体稳定','good'];
+ return {latest,ms,now,problems,actions,attention:[...new Set(attention)].slice(0,3),health}
+}
+
+
+function promoterDiagnostic(){
+ let ms=D.last3, latest=ms.at(-1);
+ let evals=D.promoters.filter(p=>{
+   let hm=String(p.date||'').slice(0,7).replace('-','');
+   return hm && hm<=latest;
+ }).map(p=>{
+   let hm=String(p.date||'').slice(0,7).replace('-','');
+   let em=ms.filter(m=>m>=hm);
+   let vals=em.map(m=>p.months[m]||{so:0,mult:0,note60:0,gt50:0});
+   let sos=vals.map(v=>+v.so||0), mults=vals.map(v=>+v.mult||0);
+   let latestSo=sos.at(-1)||0, prevSo=sos.length>1?sos.at(-2):null;
+   let latestMult=mults.at(-1)||0, prevMult=mults.length>1?mults.at(-2):null;
+   let lowMonths=mults.filter(v=>v<=.5).length, zeroMonths=mults.filter(v=>v===0).length;
+   let consecutiveLow=0;
+   for(let i=mults.length-1;i>=0;i--){if(mults[i]<=.5)consecutiveLow++;else break}
+   let salesTrend=prevSo===null?'na':latestSo>prevSo?'up':latestSo<prevSo?'down':'flat';
+   let multTrend=prevMult===null?'na':latestMult>prevMult?'up':latestMult<prevMult?'down':'flat';
+   let note=vals.reduce((s,v)=>s+(+v.note60||0),0), gt=vals.reduce((s,v)=>s+(+v.gt50||0),0);
+   return {p,em,vals,sos,mults,latestSo,prevSo,latestMult,prevMult,lowMonths,zeroMonths,consecutiveLow,salesTrend,multTrend,
+     avgSo:em.length?sos.reduce((a,b)=>a+b,0)/em.length:0,focus:note+gt,note,gt}
+ }).filter(x=>x.em.length>0);
+
+ let n=evals.length, now=[],problems=[],actions=[],attention=[],severity=0;
+ if(!n)return {latest,ms,evals,now:['暂无可评价导购。'],problems:['当前无足够数据进行团队诊断。'],actions:['检查在职名单与月度数据。'],attention:[],health:['🟡 数据不足','watch']};
+
+ let full=evals.filter(x=>x.latestMult>=.999).length;
+ let zero=evals.filter(x=>x.latestMult===0).length;
+ let low50=evals.filter(x=>x.latestMult<=.5).length;
+ let mid=evals.filter(x=>x.latestMult>.5&&x.latestMult<.999).length;
+ let low2=evals.filter(x=>x.em.length>=2 && x.mults.slice(-2).every(v=>v<=.5)).length;
+ let worseBoth=evals.filter(x=>x.em.length>=2 && x.salesTrend==='down' && x.multTrend==='down').length;
+ let improveBoth=evals.filter(x=>x.em.length>=2 && x.salesTrend==='up' && x.multTrend==='up').length;
+ let medSo=median(evals.map(x=>x.avgSo)), medFocus=median(evals.filter(x=>x.avgSo>=medSo).map(x=>x.focus));
+ let focusWeak=evals.filter(x=>x.avgSo>=medSo && x.focus < medFocus*.5).length;
+
+ now.push(`纳入评价导购 ${n} 人；最新月激励系数=1.00 的 ${full} 人（${pct(full/n)}）；>0.50且<1.00 的 ${mid} 人（${pct(mid/n)}）；≤0.50 的 ${low50} 人（${pct(low50/n)}），其中0系数 ${zero} 人。`);
+ 
+ if(improveBoth>0)now.push(`${improveBoth} 人最近1个月销量与激励系数同步改善，存在积极改善信号。`);
+
+ if(zero/n>=.08){
+   problems.push(`最新月 ${zero} 人激励系数为0（${pct(zero/n)}），需优先关注目标达成及实际在岗/销售状态。`);
+   actions.push('0系数人员建议优先核查实际经营状态；若不是新入职或数据问题，再针对性辅导并观察后续恢复情况。');
+   severity+=1;attention.push('0系数人员');
+ }
+ if(low50/n>=.08){
+   problems.push(`${low50} 人最新月激励系数≤0.50，属于目标达成偏弱群体。`);
+   actions.push('当前低达成人员建议优先做针对性辅导，并在下月重点看销量和目标达成是否同步改善。');
+   severity+=1;attention.push('低达成人员');
+ }
+ if(low2/n>=.05){
+   problems.push(`${low2} 人连续2个有效月份激励系数≤0.50，属于持续低达成信号。`);
+   actions.push('对于持续低达成且没有改善迹象的人员，建议提高复盘优先级；若后续仍无改善，再考虑人员优化。');
+   severity+=2;attention.push('连续低达成');
+ }
+ if(worseBoth/n>=.05){
+   problems.push(`${worseBoth} 人出现销量与激励系数同步下降，需关注近期经营状态恶化。`);
+   actions.push('销量和目标达成同时走弱的人员建议优先复盘，重点看近期是否存在持续恶化；长期无改善再进入优化评估。');
+   severity+=1;attention.push('同步恶化');
+ }
+ if(focusWeak/n>=.08){
+   problems.push(`${focusWeak} 名销量不低于团队中位水平的导购，NOTE 60 Pro/GT 50 Pro贡献仍明显偏弱。`);
+   actions.push('对于总销量尚可但NOTE/GT贡献偏弱的人员，建议把提升重点放在核心机型转化，并观察下月重点品贡献是否改善。');
+   severity+=1;attention.push('重点品转化');
+ }
+
+ if(!problems.length){
+   problems.push('团队目标达成、销量趋势及重点品表现整体处于正常范围，暂未识别出显著的群体性异常。');
+   actions.push('保持当前管理节奏，持续跟踪激励系数、销量趋势和重点品转化，重点关注连续异常而非单月波动。');
+ }
+
+ now=now.slice(0,3);problems=problems.slice(0,3);actions=[...new Set(actions)].slice(0,3);
+ let health=severity>=3?['🔴 存在需重点关注的团队问题','bad']:severity>=1?['🟡 整体可控，局部需关注','watch']:['🟢 团队整体稳定','good'];
+ return {latest,ms,evals,now,problems,actions,attention:[...new Set(attention)].slice(0,3),health}
+}
+
+
+function auditLabel(x){
+ let a=[];
+ if(x.latestMult===0)a.push('最新月0系数');
+ else if(x.latestMult<=.5)a.push('最新月≤0.50');
+ if(x.consecutiveLow>=2)a.push(`连续${x.consecutiveLow}月≤0.50`);
+ if(x.salesTrend==='down'&&x.multTrend==='down')a.push('销量+激励系数同步下降');
+ if(x.salesTrend==='up'&&x.multTrend==='up')a.push('销量+激励系数同步改善');
+ if(!a.length)a.push('暂无明显异常');
+ return a.join('；')
+}
+function renderAudit(p){
+ if(!document.getElementById('auditTable'))return;
+ auditStatus.textContent=`评价窗口：${p.ms.map(monthLabel).join(' / ')}；共 ${p.evals.length} 名导购。中间表用于核验自动诊断，不直接作为人员淘汰结论。`;
+ let h='<tr><th>Promoter ID</th><th>姓名</th><th>入职日期</th>'+p.ms.map(m=>`<th>${monthLabel(m)}销量</th>`).join('')+p.ms.map(m=>`<th>${monthLabel(m)}激励系数</th>`).join('')+'<th>实际在岗月数</th><th>近3月累计销量</th><th>月均销量</th><th>最新月系数</th><th>连续≤0.5月数</th><th>NOTE 60 Pro</th><th>GT 50 Pro</th><th>系统识别标签</th></tr>';
+ auditTable.innerHTML=h+p.evals.map(x=>{
+   let total=x.sos.reduce((a,b)=>a+b,0);
+   return `<tr><td>${x.p.id}</td><td>${x.p.name}</td><td>${x.p.date}</td>`+
+     p.ms.map(m=>{let i=x.em.indexOf(m);return `<td>${i>=0?fmt(x.sos[i]):'—'}</td>`}).join('')+
+     p.ms.map(m=>{let i=x.em.indexOf(m);return `<td>${i>=0?x.mults[i].toFixed(2):'—'}</td>`}).join('')+
+     `<td>${x.em.length}</td><td>${fmt(total)}</td><td>${x.avgSo.toFixed(1)}</td><td>${x.latestMult.toFixed(2)}</td><td>${x.consecutiveLow}</td><td>${fmt(x.note)}</td><td>${fmt(x.gt)}</td><td style="text-align:left;white-space:normal;min-width:220px">${auditLabel(x)}</td></tr>`
+ }).join('');
+}
+
+function optimizeInsightLayout(grid){
+ if(!grid)return;
+ const cols=[...grid.querySelectorAll('.insightCol')];
+ if(cols.length<3)return;
+ const problem=cols[1],action=cols[2];
+ const pChars=(problem.innerText||'').length,aChars=(action.innerText||'').length;
+ const pItems=problem.querySelectorAll('li').length,aItems=action.querySelectorAll('li').length;
+ // 问题和建议都较短时自动并排；任一内容变长则恢复纵向铺满
+ const compact=(pChars<=115 && aChars<=145 && pItems<=2 && aItems<=2);
+ grid.classList.toggle('autoCompact',compact);
+}
+function renderDiagnostics(){
+ let o=overviewDiagnostic();
+ overviewInsightMeta.textContent=`自动分析 ${monthLabel(o.latest)} 及 ${o.ms.map(monthLabel).join(' / ')} 近3个月趋势`;
+ overviewHealth.className='health '+o.health[1]; overviewHealth.textContent=o.health[0];
+ overviewNow.innerHTML=li(o.now); overviewProblems.innerHTML=li(o.problems); overviewActions.innerHTML=li(o.actions);
+ overviewAttention.innerHTML=o.attention.length?`<b>本月重点关注：</b>${o.attention.join(' · ')}`:'<b>本月重点关注：</b>暂无需升级处理的明显异常';
+ optimizeInsightLayout(document.querySelector('#overviewInsight .insightGrid'));
+
+ let p=promoterDiagnostic();
+ promoterInsightMeta.textContent=`全体纳入评价导购｜评价窗口：${p.ms.map(monthLabel).join(' / ')}`;
+ promoterHealth.className='health '+p.health[1]; promoterHealth.textContent=p.health[0];
+ promoterNow.innerHTML=li(p.now); promoterProblems.innerHTML=li(p.problems); promoterActions.innerHTML=li(p.actions);
+ promoterAttention.innerHTML=p.attention.length?`<b>重点关注信号：</b>${p.attention.join(' · ')}`:'<b>重点关注信号：</b>暂未发现明显群体性异常';
+ optimizeInsightLayout(document.querySelector('#promoterInsight .insightGrid'));
+ renderAudit(p);
+}
+
 function renderProm(){let h='<tr><th>Promoter ID</th><th>Promoter name</th><th>DEPLOYMENT DATE</th>'+D.last3.map(m=>`<th>${m} Promoter SO</th>`).join('')+D.last3.map(m=>`<th>${m} 激励系数</th>`).join('')+D.last3.map(m=>`<th>${m} NOTE 60 Pro</th>`).join('')+D.last3.map(m=>`<th>${m} GT 50 Pro</th>`).join('')+'</tr>';promTable.innerHTML=h+D.promoters.map(p=>`<tr><td>${p.id}</td><td>${p.name}</td><td>${p.date}</td>${D.last3.map(m=>`<td>${fmt(p.months[m].so)}</td>`).join('')}${D.last3.map(m=>`<td>${(+p.months[m].mult).toFixed(2)}</td>`).join('')}${D.last3.map(m=>`<td>${fmt(p.months[m].note60)}</td>`).join('')}${D.last3.map(m=>`<td>${fmt(p.months[m].gt50)}</td>`).join('')}</tr>`).join('')}
 
 function rankSelectedMonths(){return chosen('rankChk').sort()}
@@ -134,12 +528,12 @@ function perfBenchmark(all){
  return sales.length?sales.reduce((s,x)=>s+x.avg,0)/sales.length:0
 }
 function perfJudgment(x,benchmark,mode){
- if(mode==='zero')return['🔵 优先核查','评价区间内入职后累计销量为0，先核查是否实际到岗、排班/门店异常或数据匹配问题。','check'];
+ if(mode==='zero')return['🔵 优先核查','评价区间内入职后累计销量为0，先核查是否实际到岗、/门店异常或数据匹配问题。','check'];
  if(x.activeMonths<=1)return['🟢 继续培养','当前仅有1个月有效在岗数据，评价周期不足，暂不建议做人员优化判断。','good'];
  if(x.avg<benchmark*0.75&&x.trend.includes('下降'))return['🔴 建议优化/替换','近3个月在岗月均销量明显低于整体水平，且最近1个月继续下降。','bad'];
  if(x.avg<benchmark*0.75&&x.trend.includes('持平'))return['🔴 建议优化/替换','近3个月在岗月均销量明显低于整体水平，近期也未出现改善。','bad'];
  if(x.avg<benchmark*0.75&&x.trend.includes('上升'))return['🟡 重点观察','历史月均销量偏低，但最近1个月已有改善，建议继续观察改善是否持续。','watch'];
- if(x.avg<benchmark)return['🟡 重点观察','近3个月在岗月均销量低于整体水平，建议结合门店质量、排班和产品结构持续跟踪。','watch'];
+ if(x.avg<benchmark)return['🟡 重点观察','近3个月在岗月均销量低于整体水平，建议结合门店质量、和产品结构持续跟踪。','watch'];
  return['🟢 表现良好','近3个月在岗月均销量达到或高于整体水平，当前表现良好。','good'];
 }
 let currentRankMode='top';
@@ -181,17 +575,20 @@ function csv(name,rows){let e=v=>'"'+String(v??'').replaceAll('"','""')+'"',b=ne
 function init(){
  dataRange.textContent='数据范围：'+monthLabel(D.months[0])+' ~ '+monthLabel(D.months.at(-1));menu(cumMenu,'cumChk','cumAll','cumNone');menu(rankMenu,'rankChk','rankAll','rankNone');
  D.regions.forEach(r=>{typeRegion.add(new Option(r,r));focusTypeRegion.add(new Option(r,r))});
+ [regionStore,focusRegionStore].forEach(sel=>{sel.innerHTML='<option value="ALL">全部门店类型</option>';D.stores.forEach(s=>sel.add(new Option(s,s)))});
+
  legendMain.innerHTML=`<span><i class="dot" style="background:${C[0]}"></i>门店总销量</span><span><i class="dot" style="background:${C[1]}"></i>Promoter销量</span><span><i class="dot" style="background:${C[2]}"></i>激励机型销量</span><span>折线：Promoter占比 / 激励机型占比</span>`;
  document.querySelectorAll('.cumChk').forEach(x=>x.onchange=updateSummary);cumAll.onclick=()=>{document.querySelectorAll('.cumChk').forEach(x=>x.checked=1);updateSummary()};cumNone.onclick=()=>{document.querySelectorAll('.cumChk').forEach(x=>x.checked=0);updateSummary()};
  document.querySelectorAll('.rankChk').forEach(x=>x.onchange=renderRank);rankAll.onclick=()=>{document.querySelectorAll('.rankChk').forEach(x=>x.checked=1);renderRank()};rankNone.onclick=()=>{document.querySelectorAll('.rankChk').forEach(x=>x.checked=0);renderRank()};document.querySelectorAll('.rankTab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.rankTab').forEach(x=>x.classList.remove('on'));b.classList.add('on');currentRankMode=b.dataset.mode;renderRank()});
  typeRegion.onchange=renderType;regionStore.onchange=renderRegions;focusTypeRegion.onchange=renderFocusType;focusRegionStore.onchange=renderFocusRegions;
  rankStatus.textContent=`当前在职导购名单：${D.activeCount} 人；匹配到销售数据：${D.matched} 人。`;
  qualityText.textContent=`Supabase 实时数据：dashboard_monthly ${D.dashCount} 条；promoter_monthly ${D.promCount} 条；在职导购 ${D.activeCount} 人；数据月份 ${D.months.length} 个月。`;
- updateSummary();renderType();renderRegions();renderFocusType();renderFocusRegions();renderProm();renderRank();
+ updateSummary();renderDiagnostics();renderType();renderRegions();renderFocusType();renderFocusRegions();renderProm();renderRank();
  document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('on'));b.classList.add('on');document.querySelectorAll('.view').forEach(x=>x.classList.remove('on'));document.getElementById(b.dataset.v).classList.add('on')});
  exportSummary.onclick=()=>{let a=sumMonths(chosen('cumChk'));csv('INFINIX_导购经营看板_累计汇总.csv',[['指标','数值'],['总销售额',a.sales],['总实际激励',a.inc],['门店总销量',a.qty],['Promoter销量',a.promoter],['NOTE 60 Pro',a.note60],['GT 50 Pro',a.gt50]])};
  exportProm.onclick=()=>csv('INFINIX_在职导购近3个月表现_'+D.last3.join('-')+'.csv',[['Promoter ID','Promoter name','DEPLOYMENT DATE',...D.last3.map(m=>m+' SO'),...D.last3.map(m=>m+' 激励系数'),...D.last3.map(m=>m+' NOTE 60 Pro'),...D.last3.map(m=>m+' GT 50 Pro')],...D.promoters.map(p=>[p.id,p.name,p.date,...D.last3.map(m=>p.months[m].so),...D.last3.map(m=>p.months[m].mult),...D.last3.map(m=>p.months[m].note60),...D.last3.map(m=>p.months[m].gt50)])]);
- exportRank.onclick=()=>{let rows=currentRankRows();csv('INFINIX_导购排名_'+getRankMode()+'.csv',[['Promoter ID','Promoter name','DEPLOYMENT DATE','实际在岗月数','近3个月在岗累计销量','近3个月在岗月均销量','最近1月销量','趋势','NOTE 60 Pro','GT 50 Pro','综合判断','判断原因'],...rows.map(x=>[x.id,x.name,x.date,x.activeMonths,x.total,x.avg,x.latest,x.trend,x.note,x.gt,x.judgment[0],x.judgment[1]])])};
+ exportAudit.onclick=()=>{let p=promoterDiagnostic();csv('INFINIX_诊断中间表.csv',[['Promoter ID','姓名','入职日期',...p.ms.map(monthLabel).map(x=>x+'销量'),...p.ms.map(monthLabel).map(x=>x+'激励系数'),'实际在岗月数','近3月累计销量','月均销量','最新月系数','连续≤0.5月数','NOTE 60 Pro','GT 50 Pro','系统识别标签'],...p.evals.map(x=>[x.p.id,x.p.name,x.p.date,...p.ms.map(m=>{let i=x.em.indexOf(m);return i>=0?x.sos[i]:''}),...p.ms.map(m=>{let i=x.em.indexOf(m);return i>=0?x.mults[i]:''}),x.em.length,x.sos.reduce((a,b)=>a+b,0),x.avgSo,x.latestMult,x.consecutiveLow,x.note,x.gt,auditLabel(x)])])};
+exportRank.onclick=()=>{let rows=currentRankRows();csv('INFINIX_导购排名_'+getRankMode()+'.csv',[['Promoter ID','Promoter name','DEPLOYMENT DATE','实际在岗月数','近3个月在岗累计销量','近3个月在岗月均销量','最近1月销量','趋势','NOTE 60 Pro','GT 50 Pro','综合判断','判断原因'],...rows.map(x=>[x.id,x.name,x.date,x.activeMonths,x.total,x.avg,x.latest,x.trend,x.note,x.gt,x.judgment[0],x.judgment[1]])])};
  document.addEventListener('click',e=>document.querySelectorAll('details[open]').forEach(d=>{if(!d.contains(e.target))d.open=false}));
 }
 load().then(init).catch(e=>{document.body.innerHTML='<div style="padding:40px;font-family:Arial"><h2>实时数据加载失败</h2><pre>'+e.message+'</pre></div>';console.error(e)});
