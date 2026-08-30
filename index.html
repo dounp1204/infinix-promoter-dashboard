@@ -23,6 +23,7 @@ summary{cursor:pointer}.cards{display:grid;grid-template-columns:repeat(5,minmax
 .tablebox{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px}.thead{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}.thead h2{margin:0}.subexport{border:0;background:#3267e8;color:#fff;padding:10px 14px;border-radius:8px;font-weight:800}
 .tw{overflow:auto;max-height:670px;border:1px solid var(--line);border-radius:9px}table{border-collapse:collapse;width:100%;font-size:12px}th,td{padding:9px;border-bottom:1px solid var(--line);white-space:nowrap;text-align:right}th{position:sticky;top:0;background:#f6f8fc;z-index:2}th:first-child,td:first-child,th:nth-child(2),td:nth-child(2),th:nth-child(3),td:nth-child(3){text-align:left}
 .status{font-size:12px;color:var(--muted);margin:10px 0}.note{font-size:11px;color:#567064;background:#edf8f4;padding:10px 12px;border-radius:8px;margin-top:10px}
+.rankTabs{display:flex;gap:8px;margin:8px 0 12px;flex-wrap:wrap}.rankTab{border:1px solid #d9e0ea;background:#fff;color:#475467;padding:9px 14px;border-radius:9px;font-weight:700;cursor:pointer}.rankTab.on{background:#eaf7f2;color:#087f5b;border-color:#19a974}.rankTab:hover{border-color:#19a974}.rankTabs+.status{margin-top:0}.judg{font-weight:800}.j-good{color:#149473}.j-watch{color:#b56a00}.j-bad{color:#b42318}.j-check{color:#3267e8}
 @media(max-width:1350px){.grid7{grid-template-columns:repeat(4,1fr)}}@media(max-width:900px){.app{grid-template-columns:1fr}.side{display:none}.grid3,.grid7{grid-template-columns:1fr}.page{padding:12px}}
 </style>
 </head>
@@ -57,8 +58,10 @@ summary{cursor:pointer}.cards{display:grid;grid-template-columns:repeat(5,minmax
 </div></section>
 
 <section id="promoters" class="view"><div class="page"><div class="tablebox"><div class="thead"><h2>在职导购近3个月表现</h2><button class="subexport" id="exportProm">⇩ 导出导购表现</button></div><div class="tw"><table id="promTable"></table></div></div></div></section>
-<section id="ranking" class="view"><div class="page"><div class="tablebox"><div class="thead"><h2>Promoter 累计销量 Top 20</h2><button class="subexport" id="exportRank">⇩ 导出导购排名</button></div>
-<div class="box filters" style="margin-bottom:10px"><label>排名月份：</label><details id="rankD"><summary id="rankSummary">加载中…</summary><div class="menu" id="rankMenu"></div></details></div><div class="status" id="rankStatus"></div><div class="tw"><table id="rankTable"></table></div></div></div></section>
+<section id="ranking" class="view"><div class="page"><div class="tablebox"><div class="thead"><h2 id="rankTitle">导购排名与优化</h2><button class="subexport" id="exportRank">⇩ 导出当前排名</button></div>
+<div class="box filters" style="margin-bottom:10px"><label>排名月份：</label><details id="rankD"><summary id="rankSummary">加载中…</summary><div class="menu" id="rankMenu"></div></details><span style="color:var(--muted);font-size:12px">排名以所选区间的最后一个月为评价截止月；截止月之后才入职的导购自动排除。</span></div>
+<div class="rankTabs"><button class="rankTab on" data-mode="top">🏆 优秀导购 Top 20</button><button class="rankTab" data-mode="bottom">⚠️ 待优化导购 Bottom 20</button><button class="rankTab" data-mode="zero">🚨 在职无销售数据</button></div>
+<div class="status" id="rankStatus"></div><div class="note" id="rankRuleNote"></div><div class="tw"><table id="rankTable"></table></div></div></div></section>
 <section id="quality" class="view"><div class="page"><div class="tablebox"><h2>数据质量</h2><div id="qualityText" class="status"></div></div></div></section>
 </main></div>
 <script>
@@ -100,15 +103,87 @@ function renderRegions(){regionGrid.innerHTML=['ALL',...D.regions].map(r=>`<div 
 function renderFocusType(){let f=focusTypeRegion.value;chart(fAll,rows('type','ALL',f),true);chart(fConcept,rows('type','CONCEPT',f),true);chart(fKiosk,rows('type','KIOSK',f),true)}
 function renderFocusRegions(){focusRegionGrid.innerHTML=['ALL',...D.regions].map(r=>`<div class="panel"><h3>${r=='ALL'?'总体表现（所有区域）':r}</h3><div class="chart small" id="fr_${r.replaceAll(' ','_')}"></div></div>`).join('');['ALL',...D.regions].forEach(r=>chart(document.getElementById('fr_'+r.replaceAll(' ','_')),rows('region',r,focusRegionStore.value),true,true))}
 function renderProm(){let h='<tr><th>Promoter ID</th><th>Promoter name</th><th>DEPLOYMENT DATE</th>'+D.last3.map(m=>`<th>${m} Promoter SO</th>`).join('')+D.last3.map(m=>`<th>${m} 激励系数</th>`).join('')+D.last3.map(m=>`<th>${m} NOTE 60 Pro</th>`).join('')+D.last3.map(m=>`<th>${m} GT 50 Pro</th>`).join('')+'</tr>';promTable.innerHTML=h+D.promoters.map(p=>`<tr><td>${p.id}</td><td>${p.name}</td><td>${p.date}</td>${D.last3.map(m=>`<td>${fmt(p.months[m].so)}</td>`).join('')}${D.last3.map(m=>`<td>${(+p.months[m].mult).toFixed(2)}</td>`).join('')}${D.last3.map(m=>`<td>${fmt(p.months[m].note60)}</td>`).join('')}${D.last3.map(m=>`<td>${fmt(p.months[m].gt50)}</td>`).join('')}</tr>`).join('')}
-function rankRows(){let set=new Set(chosen('rankChk')),mp=new Map();D.rank.forEach(r=>{if(!set.has(r.month))return;let a=mp.get(r.id)||{...r,qty:0,sales:0,inc:0,note60:0,gt50:0};a.qty+=r.qty;a.sales+=r.sales;a.inc+=r.inc;a.note60+=r.note60;a.gt50+=r.gt50;mp.set(r.id,a)});return[...mp.values()].sort((a,b)=>b.qty-a.qty||b.sales-a.sales).slice(0,20)}
-function renderRank(){let ms=chosen('rankChk');rankSummary.textContent=ms.length?(monthLabel(ms[0])+(ms.length>1?' ~ '+monthLabel(ms.at(-1)):'')):'未选择月份';let r=rankRows();rankTable.innerHTML='<tr><th>Promoter ID</th><th>Promoter name</th><th>累计销量</th><th>销售额</th><th>总实际激励</th><th>NOTE 60 Pro</th><th>GT 50 Pro</th></tr>'+r.map(x=>`<tr><td>${x.id}</td><td>${x.name}</td><td>${fmt(x.qty)}</td><td>${money(x.sales)}</td><td>${money(x.inc)}</td><td>${fmt(x.note60)}</td><td>${fmt(x.gt50)}</td></tr>`).join('')}
+
+function rankSelectedMonths(){return chosen('rankChk').sort()}
+function rankEvalMonths(){let ms=rankSelectedMonths();return ms.slice(-3)}
+function rankCutoffMonth(){let ms=rankSelectedMonths();return ms.length?ms.at(-1):null}
+function eligibleByCutoff(p){
+ let c=rankCutoffMonth();
+ if(!c||!p.date)return false;
+ let hireMonth=String(p.date).slice(0,7).replace('-','');
+ return hireMonth<=c;
+}
+function promoterPerfRows(){
+ let ms=rankEvalMonths(),end=ms.at(-1),promMap=new Map(D.rank.map(r=>[r.id+'|'+r.month,r]));
+ return D.promoters.filter(eligibleByCutoff).map(p=>{
+   let hireMonth=String(p.date||'').slice(0,7).replace('-','');
+   let eligible=ms.filter(m=>m>=hireMonth);
+   let activeMonths=eligible.length;
+   let total=eligible.reduce((n,m)=>n+(promMap.get(p.id+'|'+m)?.qty||0),0);
+   let latest=eligible.length?(promMap.get(p.id+'|'+eligible.at(-1))?.qty||0):0;
+   let prev=eligible.length>1?(promMap.get(p.id+'|'+eligible.at(-2))?.qty||0):null;
+   let avg=activeMonths?total/activeMonths:0;
+   let note=eligible.reduce((n,m)=>n+(promMap.get(p.id+'|'+m)?.note60||0),0);
+   let gt=eligible.reduce((n,m)=>n+(promMap.get(p.id+'|'+m)?.gt50||0),0);
+   let trend=prev===null?'—':latest>prev?'↑ 上升':latest<prev?'↓ 下降':'→ 持平';
+   return{...p,eligible,activeMonths,total,avg,latest,prev,trend,note,gt,hasSales:total>0}
+ }).filter(x=>x.activeMonths>0)
+}
+function perfBenchmark(all){
+ let sales=all.filter(x=>x.hasSales);
+ return sales.length?sales.reduce((s,x)=>s+x.avg,0)/sales.length:0
+}
+function perfJudgment(x,benchmark,mode){
+ if(mode==='zero')return['🔵 优先核查','评价区间内入职后累计销量为0，先核查是否实际到岗、排班/门店异常或数据匹配问题。','check'];
+ if(x.activeMonths<=1)return['🟢 继续培养','当前仅有1个月有效在岗数据，评价周期不足，暂不建议做人员优化判断。','good'];
+ if(x.avg<benchmark*0.75&&x.trend.includes('下降'))return['🔴 建议优化/替换','近3个月在岗月均销量明显低于整体水平，且最近1个月继续下降。','bad'];
+ if(x.avg<benchmark*0.75&&x.trend.includes('持平'))return['🔴 建议优化/替换','近3个月在岗月均销量明显低于整体水平，近期也未出现改善。','bad'];
+ if(x.avg<benchmark*0.75&&x.trend.includes('上升'))return['🟡 重点观察','历史月均销量偏低，但最近1个月已有改善，建议继续观察改善是否持续。','watch'];
+ if(x.avg<benchmark)return['🟡 重点观察','近3个月在岗月均销量低于整体水平，建议结合门店质量、排班和产品结构持续跟踪。','watch'];
+ return['🟢 表现良好','近3个月在岗月均销量达到或高于整体水平，当前表现良好。','good'];
+}
+let currentRankMode='top';
+function getRankMode(){return currentRankMode}
+function currentRankRows(){
+ let all=promoterPerfRows(),benchmark=perfBenchmark(all),mode=getRankMode(),rows;
+ if(mode==='zero')rows=all.filter(x=>!x.hasSales).sort((a,b)=>a.name.localeCompare(b.name));
+ else if(mode==='bottom')rows=all.filter(x=>x.hasSales).sort((a,b)=>a.avg-b.avg||a.latest-b.latest).slice(0,20);
+ else rows=all.filter(x=>x.hasSales).sort((a,b)=>b.avg-a.avg||b.latest-a.latest).slice(0,20);
+ return rows.map(x=>({...x,judgment:perfJudgment(x,benchmark,mode),benchmark}));
+}
+function renderRank(){
+ let ms=rankSelectedMonths();
+ rankSummary.textContent=ms.length?(monthLabel(ms[0])+(ms.length>1?' ~ '+monthLabel(ms.at(-1)):'')):'未选择月份';
+ let mode=getRankMode(),r=currentRankRows(),evalMs=rankEvalMonths(),cutoff=rankCutoffMonth();
+ let eligibleCount=D.promoters.filter(eligibleByCutoff).length;
+ rankStatus.textContent=`评价月份：${evalMs.map(monthLabel).join('、')||'未选择'}；评价截止月：${cutoff?monthLabel(cutoff):'—'}；纳入评价导购：${eligibleCount} 人。`;
+ if(mode==='top'){
+   rankTitle.textContent='优秀导购 Top 20';
+   exportRank.textContent='⇩ 导出优秀导购';
+   rankRuleNote.textContent='按近3个月“实际在岗月均销量”从高到低排序。入职前月份不计入分母；评价截止月之后才入职的人员自动排除。';
+ }else if(mode==='bottom'){
+   rankTitle.textContent='待优化导购 Bottom 20';
+   exportRank.textContent='⇩ 导出待优化导购';
+   rankRuleNote.textContent='排除完全无销售人员后，按近3个月“实际在岗月均销量”从低到高排序，并结合最近1个月趋势和有效评价周期给出综合判断。';
+ }else{
+   rankTitle.textContent='在职无销售数据';
+   exportRank.textContent='⇩ 导出无销售导购';
+   rankRuleNote.textContent='仅显示评价截止月之前已入职、且在评价区间实际在岗月份内累计销量为0的导购；未来月份入职人员不会出现。';
+ }
+ let h='<tr><th>Promoter ID</th><th>Promoter name</th><th>DEPLOYMENT DATE</th><th>实际在岗月数</th><th>近3个月在岗累计销量</th><th>近3个月在岗月均销量</th><th>最近1月销量</th><th>趋势</th><th>NOTE 60 Pro</th><th>GT 50 Pro</th><th>综合判断</th><th>判断原因</th></tr>';
+ rankTable.innerHTML=h+r.map(x=>{
+   let j=x.judgment;
+   return `<tr><td>${x.id}</td><td>${x.name}</td><td>${x.date}</td><td>${x.activeMonths}</td><td>${fmt(x.total)}</td><td><b>${x.avg.toFixed(1)}</b></td><td>${fmt(x.latest)}</td><td>${x.trend}</td><td>${fmt(x.note)}</td><td>${fmt(x.gt)}</td><td class="judg j-${j[2]}">${j[0]}</td><td style="text-align:left;white-space:normal;min-width:280px">${j[1]}</td></tr>`
+ }).join('');
+ if(!r.length)rankTable.innerHTML='<tr><td colspan="12" style="text-align:center;padding:35px;color:#75819a">当前筛选条件下没有符合条件的导购</td></tr>';
+}
 function csv(name,rows){let e=v=>'"'+String(v??'').replaceAll('"','""')+'"',b=new Blob(['\ufeff'+rows.map(r=>r.map(e).join(',')).join('\n')],{type:'text/csv'}),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),500)}
 function init(){
  dataRange.textContent='数据范围：'+monthLabel(D.months[0])+' ~ '+monthLabel(D.months.at(-1));menu(cumMenu,'cumChk','cumAll','cumNone');menu(rankMenu,'rankChk','rankAll','rankNone');
  D.regions.forEach(r=>{typeRegion.add(new Option(r,r));focusTypeRegion.add(new Option(r,r))});
  legendMain.innerHTML=`<span><i class="dot" style="background:${C[0]}"></i>门店总销量</span><span><i class="dot" style="background:${C[1]}"></i>Promoter销量</span><span><i class="dot" style="background:${C[2]}"></i>激励机型销量</span><span>折线：Promoter占比 / 激励机型占比</span>`;
  document.querySelectorAll('.cumChk').forEach(x=>x.onchange=updateSummary);cumAll.onclick=()=>{document.querySelectorAll('.cumChk').forEach(x=>x.checked=1);updateSummary()};cumNone.onclick=()=>{document.querySelectorAll('.cumChk').forEach(x=>x.checked=0);updateSummary()};
- document.querySelectorAll('.rankChk').forEach(x=>x.onchange=renderRank);rankAll.onclick=()=>{document.querySelectorAll('.rankChk').forEach(x=>x.checked=1);renderRank()};rankNone.onclick=()=>{document.querySelectorAll('.rankChk').forEach(x=>x.checked=0);renderRank()};
+ document.querySelectorAll('.rankChk').forEach(x=>x.onchange=renderRank);rankAll.onclick=()=>{document.querySelectorAll('.rankChk').forEach(x=>x.checked=1);renderRank()};rankNone.onclick=()=>{document.querySelectorAll('.rankChk').forEach(x=>x.checked=0);renderRank()};document.querySelectorAll('.rankTab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.rankTab').forEach(x=>x.classList.remove('on'));b.classList.add('on');currentRankMode=b.dataset.mode;renderRank()});
  typeRegion.onchange=renderType;regionStore.onchange=renderRegions;focusTypeRegion.onchange=renderFocusType;focusRegionStore.onchange=renderFocusRegions;
  rankStatus.textContent=`当前在职导购名单：${D.activeCount} 人；匹配到销售数据：${D.matched} 人。`;
  qualityText.textContent=`Supabase 实时数据：dashboard_monthly ${D.dashCount} 条；promoter_monthly ${D.promCount} 条；在职导购 ${D.activeCount} 人；数据月份 ${D.months.length} 个月。`;
@@ -116,7 +191,7 @@ function init(){
  document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('on'));b.classList.add('on');document.querySelectorAll('.view').forEach(x=>x.classList.remove('on'));document.getElementById(b.dataset.v).classList.add('on')});
  exportSummary.onclick=()=>{let a=sumMonths(chosen('cumChk'));csv('INFINIX_导购经营看板_累计汇总.csv',[['指标','数值'],['总销售额',a.sales],['总实际激励',a.inc],['门店总销量',a.qty],['Promoter销量',a.promoter],['NOTE 60 Pro',a.note60],['GT 50 Pro',a.gt50]])};
  exportProm.onclick=()=>csv('INFINIX_在职导购近3个月表现_'+D.last3.join('-')+'.csv',[['Promoter ID','Promoter name','DEPLOYMENT DATE',...D.last3.map(m=>m+' SO'),...D.last3.map(m=>m+' 激励系数'),...D.last3.map(m=>m+' NOTE 60 Pro'),...D.last3.map(m=>m+' GT 50 Pro')],...D.promoters.map(p=>[p.id,p.name,p.date,...D.last3.map(m=>p.months[m].so),...D.last3.map(m=>p.months[m].mult),...D.last3.map(m=>p.months[m].note60),...D.last3.map(m=>p.months[m].gt50)])]);
- exportRank.onclick=()=>csv('INFINIX_Promoter累计销量Top20.csv',[['Promoter ID','Promoter name','累计销量','销售额','总实际激励','NOTE 60 Pro','GT 50 Pro'],...rankRows().map(x=>[x.id,x.name,x.qty,x.sales,x.inc,x.note60,x.gt50])]);
+ exportRank.onclick=()=>{let rows=currentRankRows();csv('INFINIX_导购排名_'+getRankMode()+'.csv',[['Promoter ID','Promoter name','DEPLOYMENT DATE','实际在岗月数','近3个月在岗累计销量','近3个月在岗月均销量','最近1月销量','趋势','NOTE 60 Pro','GT 50 Pro','综合判断','判断原因'],...rows.map(x=>[x.id,x.name,x.date,x.activeMonths,x.total,x.avg,x.latest,x.trend,x.note,x.gt,x.judgment[0],x.judgment[1]])])};
  document.addEventListener('click',e=>document.querySelectorAll('details[open]').forEach(d=>{if(!d.contains(e.target))d.open=false}));
 }
 load().then(init).catch(e=>{document.body.innerHTML='<div style="padding:40px;font-family:Arial"><h2>实时数据加载失败</h2><pre>'+e.message+'</pre></div>';console.error(e)});
