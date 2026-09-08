@@ -79,15 +79,6 @@ white-space:nowrap;transform:translate(10px,-12px)}
   <div class="tw"><table id="overviewMetricTable" class="metricTable"></table></div>
   <div class="note">重点机型配置：NOTE EDGE、NOTE 60 PRO、GT 50 PRO、NOTE 60 ULTRA。XPAD作为当前AIoT品类独立统计；占比类指标按百分点（pct）比较，其余指标按增长率比较。后续月份、SIS门店及新AIoT品类可随完整源数据动态扩展。</div>
 </div>
-<div class="tablebox" style="margin-top:16px">
-  <div class="thead"><div><h2>六大区域经营诊断</h2><div class="status">按最新月份对比上月，并与总体水平交叉判断。</div></div></div>
-  <div class="tw"><table id="regionDiagnosticTable" class="metricTable"></table></div>
-  <div class="note">红色：核心指标同时低于总体且环比下降；黄色：存在单项走弱；绿色：未发现明显异常。区域数量及门店类型均从Supabase动态识别，后续SIS会自动纳入。</div>
-</div>
-<div id="regionDetailWrap" class="tablebox" style="margin-top:16px;display:none">
-  <div class="thead"><h2 id="regionDetailTitle">区域月度明细</h2><button class="subexport" id="closeRegionDetail">关闭</button></div>
-  <div class="tw"><table id="regionDetailTable" class="metricTable"></table></div>
-</div>
 </div></section>
 
 <section id="storetypes" class="view"><div class="page">
@@ -199,12 +190,6 @@ function regionStatus(c,p,overall){
  let risks=[];if(prod!=null&&allProd!=null&&prevProd!=null&&prod<allProd&&prod<prevProd)risks.push('人均单产');if(share!=null&&allShare!=null&&prevShare!=null&&share<allShare&&share<prevShare)risks.push('导购贡献占比');if(focusShare!=null&&allFocus!=null&&prevFocus!=null&&focusShare<allFocus&&focusShare<prevFocus)risks.push('重点机型占比');
  return risks.length>=2?['重点关注','bad',risks.join('、')+'同时低于总体并环比下降']:risks.length?['局部关注','watch',risks.join('、')+'走弱']:['表现正常','good','未发现核心指标同时低于总体并环比下降']
 }
-function renderRegionDiagnostics(){
- let latest=D.months.at(-1),prev=D.months.length>1?D.months.at(-2):null,overall=D.monthly[latest]||empty();
- let h='<tr><th>区域</th><th>导购人数</th><th>人均单产</th><th>导购贡献销量</th><th>门店销量</th><th>导购贡献占比</th><th>重点机型销量</th><th>重点机型占比</th><th>XPAD销量</th><th>XPAD占比</th><th>综合判断</th><th>判断原因</th></tr>';
- regionDiagnosticTable.innerHTML=h+D.regions.map(r=>{let c=D.byR[r][latest]||empty(),p=prev?(D.byR[r][prev]||empty()):empty(),s=regionStatus(c,p,overall),pc=c.promoterCount==null?'N/A':fmt(c.promoterCount);return`<tr><td><button class="region-link" data-region="${r}">${r}</button></td><td>${pc}</td><td>${c.promoterCount?(c.promoter/c.promoterCount).toFixed(1):'N/A'}</td><td>${fmt(c.promoter)}<br>${changeText(c.promoter,p.promoter)}</td><td>${fmt(c.qty)}<br>${changeText(c.qty,p.qty)}</td><td>${c.qty?pct(c.promoter/c.qty):'N/A'}<br>${changeText(c.qty?c.promoter/c.qty:null,p.qty?p.promoter/p.qty:null,true)}</td><td>${fmt(c.focus)}</td><td>${c.promoter?pct(c.focus/c.promoter):'N/A'}<br>${changeText(c.promoter?c.focus/c.promoter:null,p.promoter?p.focus/p.promoter:null,true)}</td><td>${c.xpad==null?'N/A':fmt(c.xpad)}</td><td>${c.xpad==null||!c.promoter?'N/A':pct(c.xpad/c.promoter)}</td><td><span class="region-badge region-${s[1]}">${s[0]}</span></td><td style="text-align:left;white-space:normal;min-width:220px">${s[2]}</td></tr>`}).join('');
- document.querySelectorAll('.region-link').forEach(b=>b.onclick=()=>{let r=b.dataset.region;regionDetailTitle.textContent=r+' 月度经营明细';renderMetricMatrix(regionDetailTable,D.byR[r]);regionDetailWrap.style.display='block';regionDetailWrap.scrollIntoView({behavior:'smooth'})})
-}
 let currentRegion='ALL';
 function renderRegionMetricTabs(){
  let regions=['ALL',...D.regions];
@@ -216,7 +201,7 @@ function renderRegionMetricTabs(){
 }
 function renderOverview(){
  regionTabs.onclick=e=>{let b=e.target.closest('button[data-region]');if(!b)return;currentRegion=b.dataset.region;renderRegionMetricTabs()};
- renderRegionMetricTabs();renderRegionDiagnostics();closeRegionDetail.onclick=()=>regionDetailWrap.style.display='none'
+ renderRegionMetricTabs()
 }
 let currentStoreType='ALL';
 function renderStoreDashboard(){
