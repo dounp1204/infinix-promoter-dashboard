@@ -67,6 +67,7 @@ white-space:nowrap;transform:translate(10px,-12px)}
 <button data-v="storetypes"><b>▤</b>分门店类型经营看板</button>
 <button data-v="promoters"><b>♙</b>导购表现</button>
 <button data-v="ranking"><b>⌂</b>导购排名</button>
+<button data-v="storeimpact"><b>↗</b>新门店导购效果</button>
 <button data-v="quality"><b>✓</b>数据质量</button>
 </div></aside>
 <main>
@@ -88,14 +89,14 @@ white-space:nowrap;transform:translate(10px,-12px)}
 
 <section id="storetypes" class="view"><div class="page">
 <div class="tablebox">
-  <div class="thead"><div><h2>分门店类型经营看板</h2><div class="status">总体、Concept、Kiosk、SIS采用相同月度口径；新增门店类型可动态扩展。</div></div></div>
+  <div class="thead"><div><h2>分门店类型经营看板</h2><div class="status">总体及各门店类型采用相同月度口径；新增门店类型可动态扩展。</div></div></div>
   <div class="storeTabs" id="storeTabs"></div>
   <div class="status" id="storeDataStatus"></div>
   <div class="tw"><table id="storeMetricTable" class="metricTable"></table></div>
-  <div class="note">SIS当前无数据时显示“暂无数据”；后续导入包含SIS的1—8月数据后自动参与计算、环比和同比。</div>
+  <div class="note">当前包含 CONCEPT、KIOSK、SIS、MULTIBRAND、SIDESTREET；总体口径包含全部有导购的门店类型。</div>
 </div>
 <div class="tablebox" id="storeDiagnosticWrap" style="margin-top:16px">
-  <div class="thead"><div><h2>三大门店类型经营诊断</h2><div class="status">按最新月份对比上月，并与总体水平交叉判断。</div></div></div>
+  <div class="thead"><div><h2>五大门店类型经营诊断</h2><div class="status">按最新月份对比上月，并与总体水平交叉判断；仅在“总体”页面展示。</div></div></div>
   <div class="tw"><table id="storeDiagnosticTable" class="metricTable"></table></div>
   <div class="note">SIS暂无数据时显示N/A且不参与异常判断；后续出现其他新门店类型时自动增加。</div>
 </div>
@@ -116,6 +117,14 @@ white-space:nowrap;transform:translate(10px,-12px)}
 <div class="box filters" style="margin-bottom:10px"><label>排名月份：</label><details id="rankD"><summary id="rankSummary">加载中…</summary><div class="menu" id="rankMenu"></div></details><span style="color:var(--muted);font-size:12px">排名以所选区间的最后一个月为评价截止月；截止月之后才入职的导购自动排除。</span></div>
 <div class="rankTabs"><button class="rankTab on" data-mode="top">🏆 优秀导购 Top 20</button><button class="rankTab" data-mode="bottom">⚠️ 待优化导购 Bottom 20</button><button class="rankTab" data-mode="zero">🚨 在职无销售数据</button></div>
 <div class="status" id="rankStatus"></div><div class="note" id="rankRuleNote"></div><div class="tw"><table id="rankTable"></table></div></div></div></section>
+<section id="storeimpact" class="view"><div class="page">
+<div class="tablebox">
+  <div class="thead"><div><h2>新增门店类型导购效果</h2><div class="status">以2026年8月 SIS、MULTIBRAND、SIDESTREET 门店清单为基础，比较配置导购前后的门店月均销量。</div></div><button class="subexport" id="exportImpact">⇩ 导出分析</button></div>
+  <div class="box filters" style="margin-bottom:10px"><label>门店类型：</label><select id="impactType"><option value="ALL">全部</option><option>SIS</option><option>MULTIBRAND</option><option>SIDESTREET</option></select><label>区域：</label><select id="impactRegion"><option value="ALL">全部区域</option></select></div>
+  <div class="status" id="impactStatus"></div>
+  <div class="tw"><table id="impactTable"></table></div>
+  <div class="note">“配置前月均”取入职月份之前的门店月销量平均值；“配置后月均”包含入职当月及之后月份。变化率按配置后月均对比配置前月均计算，并从高到低排序；无完整配置前数据时显示 N/A。</div>
+</div></div></section>
 <section id="quality" class="view"><div class="page">
 <div class="tablebox"><h2>数据质量</h2><div id="qualityText" class="status"></div></div>
 <div class="tablebox" style="margin-top:14px">
@@ -149,7 +158,7 @@ async function fetchAll(table,order='month.asc'){let out=[],from=0;while(1){let 
 function metric(r){let note60=+r.note60_pro_promoter_qty||0,gt50=+r.gt50_pro_promoter_qty||0;return{sales:+r.sales_amount_php||0,inc:+r.actual_incentive_php||0,qty:+r.store_sales_qty||0,promoter:+r.promoter_sales_qty||0,incentive:+r.incentive_model_qty||0,note60,gt50,focus:r.focus_model_qty==null?note60+gt50:+r.focus_model_qty,xpad:r.xpad_qty==null?null:+r.xpad_qty,promoterCount:r.promoter_count==null?null:+r.promoter_count}}
 function empty(){return{sales:0,inc:0,qty:0,promoter:0,incentive:0,note60:0,gt50:0,focus:0,xpad:null,promoterCount:null}}
 async function load(){
- const [dash,prom,active,kpiRows]=await Promise.all([fetchAll('dashboard_monthly'),fetchAll('promoter_monthly'),fetchAll('active_promoters','deployment_date.asc,promoter_id.asc'),fetchAll('promoter_kpi_monthly')]);
+ const [dash,prom,active,kpiRows,impact]=await Promise.all([fetchAll('dashboard_monthly'),fetchAll('promoter_monthly'),fetchAll('active_promoters','deployment_date.asc,promoter_id.asc'),fetchAll('promoter_kpi_monthly'),fetchAll('store_promoter_impact','sales_change_rate.desc.nullslast')]);
  const months=[...new Set(dash.map(x=>String(x.month)))].sort(), regions=[...new Set(dash.map(x=>x.sales_region_3).filter(x=>x&&x!='ALL'))].sort(), stores=[...new Set(dash.map(x=>x.store_type).filter(x=>x&&x!='ALL'))].sort();
  const monthly={},byR={},byS={},byRS={};regions.forEach(r=>{byR[r]={};byRS[r]={};stores.forEach(s=>byRS[r][s]={})});stores.forEach(s=>byS[s]={});
  dash.forEach(x=>{let m=String(x.month),v=metric(x),s=x.store_type||'ALL',r=x.sales_region_3||'ALL';if(s=='ALL'&&r=='ALL')monthly[m]=v;else if(s=='ALL')byR[r][m]=v;else if(r=='ALL')byS[s][m]=v;else byRS[r][s][m]=v});
@@ -163,7 +172,7 @@ async function load(){
  const promoters=active.map(a=>({id:String(a.promoter_id),name:a.promoter_name||'',date:a.deployment_date||'',region:a.sales_region_3||'未匹配区域',months:Object.fromEntries(last3.map(m=>{let x=pm.get(a.promoter_id+'|'+m),key=a.promoter_id+'|'+m,note60=+x?.note60_pro_qty||0,gt50=+x?.gt50_pro_qty||0;return[m,{so:+x?.sales_qty||0,mult:km.has(key)?multValue(km.get(key)):null,focus:x?.focus_model_qty==null?note60+gt50:+x.focus_model_qty,xpad:x?.xpad_qty==null?null:+x.xpad_qty}]}))}));
  const rank=prom.map(x=>{let key=x.promoter_id+'|'+x.month,note60=+x.note60_pro_qty||0,gt50=+x.gt50_pro_qty||0;return{month:String(x.month),id:String(x.promoter_id),name:x.promoter_name||'',qty:+x.sales_qty||0,sales:+x.sales_amount_php||0,inc:+x.actual_incentive_php||0,kpi:km.has(key)?multValue(km.get(key)):null,focus:x.focus_model_qty==null?note60+gt50:+x.focus_model_qty,xpad:x.xpad_qty==null?null:+x.xpad_qty}});
  const storeMonths=Object.fromEntries(stores.map(s=>[s,new Set(dash.filter(x=>(x.store_type||'ALL')===s&&(x.sales_region_3||'ALL')==='ALL').map(x=>String(x.month)))]));
- D={months,last3,regions,stores,storeMonths,monthly,byR,byS,byRS,total,promoters,rank,activeCount:active.length,matched:new Set(prom.map(x=>x.promoter_id)).size,dashCount:dash.length,promCount:prom.length,kpiCount:kpiRows.length};
+ D={months,last3,regions,stores,storeMonths,monthly,byR,byS,byRS,total,promoters,rank,impact,activeCount:active.length,matched:new Set(prom.map(x=>x.promoter_id)).size,dashCount:dash.length,promCount:prom.length,kpiCount:kpiRows.length};
 }
 function monthLabel(m){return m.slice(0,4)+'-'+m.slice(4)}
 function menu(el,cls,allId,noneId){el.innerHTML=`<div class="actions"><button id="${allId}">全选</button><button id="${noneId}">清空</button></div>`+D.months.map(m=>`<label><input class="${cls}" type="checkbox" value="${m}" checked> ${monthLabel(m)}</label>`).join('')}
@@ -218,7 +227,7 @@ function renderOverview(){
 let currentStoreType='ALL';
 function renderStoreDashboard(){
  storeTabs.onclick=e=>{let b=e.target.closest('button[data-store]');if(!b)return;currentStoreType=b.dataset.store;renderStoreDashboard()};
- let fixed=['ALL','CONCEPT','KIOSK','SIS'],types=[...fixed,...D.stores.filter(s=>!fixed.includes(s))];
+ let fixed=['ALL','CONCEPT','KIOSK','SIS','MULTIBRAND','SIDESTREET'],types=[...fixed,...D.stores.filter(s=>!fixed.includes(s))];
  storeTabs.innerHTML=types.map(s=>`<button class="storeTab ${s===currentStoreType?'on':''}" data-store="${s}">${s==='ALL'?'总体':s}</button>`).join('');
  let available=currentStoreType==='ALL'?new Set(D.months):(D.storeMonths[currentStoreType]||new Set()),container=currentStoreType==='ALL'?D.monthly:(D.byS[currentStoreType]||{});
  if(!available.size){storeDataStatus.textContent=`${currentStoreType} 当前暂无数据；后续导入后将自动显示。`;storeMetricTable.innerHTML='<tr><td style="text-align:center;padding:36px;color:#75819a">暂无数据（不按0处理）</td></tr>'}
@@ -227,7 +236,7 @@ function renderStoreDashboard(){
  if(currentStoreType==='ALL')renderStoreDiagnostics()
 }
 function renderStoreDiagnostics(){
- let latest=D.months.at(-1),prev=D.months.length>1?D.months.at(-2):null,overall=D.monthly[latest]||empty(),fixed=['CONCEPT','KIOSK','SIS'],types=[...fixed,...D.stores.filter(s=>!fixed.includes(s))];
+ let latest=D.months.at(-1),prev=D.months.length>1?D.months.at(-2):null,overall=D.monthly[latest]||empty(),fixed=['CONCEPT','KIOSK','SIS','MULTIBRAND','SIDESTREET'],types=[...fixed,...D.stores.filter(s=>!fixed.includes(s))];
  let h='<tr><th>门店类型</th><th>导购人数</th><th>人均单产</th><th>导购贡献销量</th><th>门店销量</th><th>导购贡献占比</th><th>重点机型销量</th><th>重点机型占比</th><th>XPAD销量</th><th>XPAD占比</th><th>综合判断</th><th>判断原因</th></tr>';
  storeDiagnosticTable.innerHTML=h+types.map(s=>{let available=D.storeMonths[s]||new Set();if(!available.has(latest))return`<tr><td>${s}</td>${Array(9).fill('<td>N/A</td>').join('')}<td><span class="region-badge region-na">暂无数据</span></td><td style="text-align:left">不参与异常判断</td></tr>`;let c=D.byS[s][latest]||empty(),p=prev?(D.byS[s][prev]||empty()):empty(),st=regionStatus(c,p,overall),pc=c.promoterCount==null?'N/A':fmt(c.promoterCount),prod=c.promoterCount?(c.promoter/c.promoterCount).toFixed(1):'N/A';return`<tr><td>${s}</td><td>${pc}</td><td>${prod}</td><td>${fmt(c.promoter)}<br>${changeText(c.promoter,p.promoter)}</td><td>${fmt(c.qty)}<br>${changeText(c.qty,p.qty)}</td><td>${c.qty?pct(c.promoter/c.qty):'N/A'}<br>${changeText(c.qty?c.promoter/c.qty:null,p.qty?p.promoter/p.qty:null,true)}</td><td>${fmt(c.focus)}</td><td>${c.promoter?pct(c.focus/c.promoter):'N/A'}<br>${changeText(c.promoter?c.focus/c.promoter:null,p.promoter?p.focus/p.promoter:null,true)}</td><td>${c.xpad==null?'N/A':fmt(c.xpad)}</td><td>${c.xpad==null||!c.promoter?'N/A':pct(c.xpad/c.promoter)}</td><td><span class="region-badge region-${st[1]}">${st[0]}</span></td><td style="text-align:left;white-space:normal;min-width:220px">${st[2]}</td></tr>`}).join('')
 }
@@ -653,6 +662,19 @@ function renderRank(){
  }).join('');
  if(!r.length)rankTable.innerHTML=`<tr><td colspan="${12+evalMs.length}" style="text-align:center;padding:35px;color:#75819a">当前筛选条件下没有符合条件的导购</td></tr>`;
 }
+function impactRows(){
+ let type=impactType.value,region=impactRegion.value;
+ return D.impact.filter(x=>(type==='ALL'||x.store_type===type)&&(region==='ALL'||x.sales_region_3===region))
+   .sort((a,b)=>(b.sales_change_rate??-Infinity)-(a.sales_change_rate??-Infinity)||String(a.deployment_date||'').localeCompare(String(b.deployment_date||'')));
+}
+function impactChange(v){if(v===null||v===undefined)return'<span class="mom-flat">N/A</span>';let cls=v>0?'mom-up':v<0?'mom-down':'mom-flat',arrow=v>0?'↑ ':v<0?'↓ ':'';return`<span class="${cls}">${arrow}${pct(Math.abs(v))}</span>`}
+function renderImpact(){
+ let rows=impactRows(),type=impactType.value,region=impactRegion.value;
+ impactStatus.textContent=`当前显示 ${rows.length} 条门店—导购记录；门店类型：${type==='ALL'?'全部':type}；区域：${region==='ALL'?'全部区域':region}。`;
+ let h='<tr><th>STORE ID</th><th>STORE NAME</th><th>STORE TYPE</th><th>区域</th><th>PROMOTER ID</th><th>PROMOTER NAME</th><th>PROMOTER DEPLOYMENT DATE</th>'+D.months.map(m=>`<th>${m} 门店销量</th>`).join('')+'<th>202606 PROMOTER SO</th><th>202607 PROMOTER SO</th><th>202608 PROMOTER SO</th><th>配置前月均</th><th>配置后月均</th><th>变化</th></tr>';
+ impactTable.innerHTML=h+rows.map(x=>`<tr><td>${x.shop_id||''}</td><td>${x.shop_name||''}</td><td>${x.store_type||''}</td><td>${x.sales_region_3||''}</td><td>${x.promoter_id||''}</td><td>${x.promoter_name||''}</td><td>${x.deployment_date||''}</td>${D.months.map(m=>`<td>${fmt(x['store_sales_'+m])}</td>`).join('')}<td>${fmt(x.promoter_so_202606)}</td><td>${fmt(x.promoter_so_202607)}</td><td>${fmt(x.promoter_so_202608)}</td><td>${x.pre_deployment_avg==null?'N/A':Number(x.pre_deployment_avg).toFixed(1)}</td><td>${x.post_deployment_avg==null?'N/A':Number(x.post_deployment_avg).toFixed(1)}</td><td>${impactChange(x.sales_change_rate==null?null:Number(x.sales_change_rate))}</td></tr>`).join('');
+ if(!rows.length)impactTable.innerHTML='<tr><td style="text-align:center;padding:35px;color:#75819a">当前筛选条件下没有记录</td></tr>';
+}
 function csv(name,rows){let e=v=>'"'+String(v??'').replaceAll('"','""')+'"',b=new Blob(['\ufeff'+rows.map(r=>r.map(e).join(',')).join('\n')],{type:'text/csv'}),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),500)}
 function init(){
  dataRange.textContent='数据范围：'+monthLabel(D.months[0])+' ~ '+monthLabel(D.months.at(-1));menu(rankMenu,'rankChk','rankAll','rankNone');
@@ -660,12 +682,14 @@ function init(){
  document.querySelectorAll('.rankChk').forEach(x=>x.onchange=renderRank);rankAll.onclick=()=>{document.querySelectorAll('.rankChk').forEach(x=>x.checked=1);renderRank()};rankNone.onclick=()=>{document.querySelectorAll('.rankChk').forEach(x=>x.checked=0);renderRank()};document.querySelectorAll('.rankTab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.rankTab').forEach(x=>x.classList.remove('on'));b.classList.add('on');currentRankMode=b.dataset.mode;renderRank()});
  rankStatus.textContent=`当前在职导购名单：${D.activeCount} 人；匹配到销售数据：${D.matched} 人。`;
  qualityText.textContent=`Supabase 实时数据：dashboard_monthly ${D.dashCount} 条；promoter_monthly ${D.promCount} 条；KPI动态匹配表 ${D.kpiCount} 条；在职导购 ${D.activeCount} 人；数据月份 ${D.months.length} 个月；识别门店类型：${D.stores.join('、')||'暂无'}。`;
- renderOverview();renderStoreDashboard();renderDiagnostics();renderProm();renderRank();
+ [...new Set(D.impact.map(x=>x.sales_region_3).filter(Boolean))].sort().forEach(r=>impactRegion.add(new Option(r,r)));impactType.onchange=renderImpact;impactRegion.onchange=renderImpact;
+ renderOverview();renderStoreDashboard();renderDiagnostics();renderProm();renderRank();renderImpact();
  document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('on'));b.classList.add('on');document.querySelectorAll('.view').forEach(x=>x.classList.remove('on'));document.getElementById(b.dataset.v).classList.add('on')});
  exportSummary.onclick=()=>csv('INFINIX_导购经营看板_月度及区域汇总.csv',[['总体月度指标',...D.months],...BUSINESS_METRICS.map(def=>[def.label,...D.months.map(m=>{let v=def.value(D.monthly[m]||empty());return v==null?'N/A':v})]),[],['区域','月份',...BUSINESS_METRICS.map(x=>x.label)],...D.regions.flatMap(r=>D.months.map(m=>[r,m,...BUSINESS_METRICS.map(def=>{let v=def.value(D.byR[r][m]||empty());return v==null?'N/A':v})]))]);
  exportProm.onclick=()=>{let region=promRegionFilter.value,rows=currentPromRows();csv('INFINIX_在职导购近3个月表现_'+(region==='ALL'?'全部区域':region)+'_'+D.last3.join('-')+'.csv',[['Promoter ID','Promoter name','区域','DEPLOYMENT DATE',...D.last3.map(m=>m+' SO'),...D.last3.map(m=>m+' 激励系数'),'近3个月累计重点机型销量','XPAD近3个月累计销量'],...rows.map(p=>{let focus=D.last3.reduce((s,m)=>s+(p.months[m].focus||0),0),hasXpad=D.last3.some(m=>p.months[m].xpad!==null),xpad=hasXpad?D.last3.reduce((s,m)=>s+(p.months[m].xpad||0),0):'N/A';return[p.id,p.name,p.region,p.date,...D.last3.map(m=>p.months[m].so),...D.last3.map(m=>p.months[m].mult===null?'N/A':p.months[m].mult),focus,xpad]})])};
  exportAudit.onclick=()=>{let p=promoterDiagnostic();csv('INFINIX_诊断中间表.csv',[['Promoter ID','姓名','入职日期',...p.ms.map(monthLabel).map(x=>x+'销量'),...p.ms.map(monthLabel).map(x=>x+'激励系数'),'实际在岗月数','近3月累计销量','月均销量','最新月系数','连续≤70%月数','近3个月累计重点机型销量','XPAD近3个月累计销量','系统识别标签'],...p.evals.map(x=>[x.p.id,x.p.name,x.p.date,...p.ms.map(m=>{let i=x.em.indexOf(m);return i>=0?x.sos[i]:''}),...p.ms.map(m=>{let i=x.em.indexOf(m);return i>=0?(x.mults[i]===null?'N/A':x.mults[i]):''}),x.em.length,x.sos.reduce((a,b)=>a+b,0),x.avgSo,x.latestMult===null?'N/A':x.latestMult,x.consecutiveLow,x.focus,x.xpad===null?'N/A':x.xpad,auditLabel(x)])])};
  exportRank.onclick=()=>{let rows=currentRankRows(),ms=rankEvalMonths();csv('INFINIX_导购排名_'+getRankMode()+'.csv',[['Promoter ID','Promoter name','DEPLOYMENT DATE','实际在岗月数','近3个月在岗累计销量','近3个月在岗月均销量',...ms.map(m=>monthLabel(m)+'激励系数'),'最近1月销量','趋势','近3个月累计重点机型销量','XPAD近3个月累计销量','综合判断','判断原因'],...rows.map(x=>[x.id,x.name,x.date,x.activeMonths,x.total,x.avg,...x.kpis.map(v=>v===null?'N/A':v),x.latest,x.trend,x.focus,x.xpad===null?'N/A':x.xpad,x.judgment[0],x.judgment[1]])])};
+ exportImpact.onclick=()=>{let rows=impactRows();csv('INFINIX_新增门店类型导购效果_202608.csv',[['STORE ID','STORE NAME','STORE TYPE','区域','PROMOTER ID','PROMOTER NAME','PROMOTER DEPLOYMENT DATE',...D.months.map(m=>m+' 门店销量'),'202606 PROMOTER SO','202607 PROMOTER SO','202608 PROMOTER SO','配置前月均','配置后月均','变化率'],...rows.map(x=>[x.shop_id,x.shop_name,x.store_type,x.sales_region_3,x.promoter_id,x.promoter_name,x.deployment_date,...D.months.map(m=>x['store_sales_'+m]),x.promoter_so_202606,x.promoter_so_202607,x.promoter_so_202608,x.pre_deployment_avg??'N/A',x.post_deployment_avg??'N/A',x.sales_change_rate??'N/A'])])};
  document.addEventListener('click',e=>document.querySelectorAll('details[open]').forEach(d=>{if(!d.contains(e.target))d.open=false}));
 }
 load().then(init).catch(e=>{document.body.innerHTML='<div style="padding:40px;font-family:Arial"><h2>实时数据加载失败</h2><pre>'+e.message+'</pre></div>';console.error(e)});
